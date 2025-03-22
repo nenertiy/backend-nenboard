@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: backend-template
+    container_name: backend-nenboard
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       ACCESS_TOKEN: ${ACCESS_TOKEN}
@@ -28,7 +28,7 @@ services:
       - backend
 
   postgres:
-    container_name: postgres-template
+    container_name: postgres-nenboard
     image: postgres:17-alpine3.21
     restart: always
     environment:
@@ -49,7 +49,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: redis-template
+    container_name: redis-nenboard
     restart: always
     ports:
       - '6379:6379'
@@ -63,7 +63,7 @@ services:
 
   minio:
     image: minio/minio
-    container_name: minio-template
+    container_name: minio-nenboard
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}

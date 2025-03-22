@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InvitationStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../app/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -57,6 +57,50 @@ export class ProjectRepository {
         users: { some: { userId } },
       },
       select: PROJECTS_SELECT,
+    });
+  }
+
+  async findUserInvitation(userId: string) {
+    return this.prisma.userProject.findMany({
+      where: { userId, status: InvitationStatus.PENDING },
+      select: {
+        project: true,
+      },
+    });
+  }
+
+  async requestToJoinProject(email: string, projectId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return this.prisma.userProject.create({
+      data: {
+        userId: user.id,
+        projectId,
+        role: UserRole.INVITED,
+        status: InvitationStatus.PENDING,
+        isActive: false,
+      },
+    });
+  }
+
+  async acceptJoinRequest(userId: string, projectId: string) {
+    return this.prisma.userProject.update({
+      where: { userId_projectId: { userId, projectId } },
+      data: {
+        role: UserRole.MEMBER,
+        status: InvitationStatus.ACCEPTED,
+        isActive: true,
+      },
+    });
+  }
+
+  async rejectJoinRequest(userId: string, projectId: string) {
+    return this.prisma.userProject.delete({
+      where: { userId_projectId: { userId, projectId } },
     });
   }
 }

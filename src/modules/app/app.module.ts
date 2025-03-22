@@ -8,6 +8,7 @@ import config from 'src/config/config';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { TokenModule } from '../token/token.module';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { TokenModule } from '../token/token.module';
       }),
     }),
     UsersModule,
+    ProjectsModule,
     AuthModule,
     TokenModule,
   ],

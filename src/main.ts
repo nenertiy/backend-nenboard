@@ -26,8 +26,8 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
 
   const config = new DocumentBuilder()
-    .setTitle('Template')
-    .setDescription('The Template API description')
+    .setTitle('Nenboard')
+    .setDescription('The Nenboard API description')
     .setVersion('1.0')
     .addBearerAuth({
       type: 'http',
@@ -49,7 +49,7 @@ async function bootstrap() {
       tryItOutEnabled: true,
       syntaxHighlight: true,
     },
-    customSiteTitle: 'Nest Template',
+    customSiteTitle: 'Nenboard API',
   });
 
   await app.listen(port, '0.0.0.0', async () => {

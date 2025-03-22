@@ -20,7 +20,13 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectRole } from 'src/common/decorators/project-role.decorator';
 import { ProjectRoleGuard } from 'src/modules/auth/guards/project-role.guard';
 import { UserRole } from '@prisma/client';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+} from '@nestjs/swagger';
 
 @ApiTags('Projects')
 @Controller('projects')
@@ -29,6 +35,17 @@ export class ProjectsController {
 
   @ApiOperation({ summary: 'Create a new project' })
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        name: { type: 'string' },
+        description: { type: 'string' },
+      },
+    },
+  })
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
@@ -75,5 +92,61 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   findProject(@Param('id') id: string) {
     return this.projectsService.findProject(id);
+  }
+
+  @ApiOperation({ summary: 'Invite a user to a project' })
+  @ApiBearerAuth()
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string' },
+      },
+    },
+  })
+  @Post(':id/invite')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
+  inviteUserToProject(
+    @Param('id') projectId: string,
+    @Body('email') email: string,
+  ) {
+    return this.projectsService.requestToJoinProject(email, projectId);
+  }
+
+  @ApiOperation({ summary: 'Get all invitations for the current user' })
+  @ApiBearerAuth()
+  @Get('invitations')
+  @UseGuards(JwtAuthGuard)
+  getUserInvitations(@DecodeUser() user: UserWithoutPassword) {
+    return this.projectsService.findUserInvitation(user.id);
+  }
+
+  @ApiOperation({ summary: 'Accept or decline an invitation' })
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: Object.values({ ACCEPTED: 'ACCEPTED', REJECTED: 'REJECTED' }),
+        },
+      },
+    },
+  })
+  @Put('invitations/:id')
+  @UseGuards(JwtAuthGuard)
+  respondToInvitation(
+    @Param('id') projectId: string,
+    @DecodeUser() user: UserWithoutPassword,
+    @Body('status') status: 'ACCEPTED' | 'REJECTED',
+  ) {
+    return this.projectsService.respondToJoinProject(
+      user.id,
+      projectId,
+      status,
+    );
   }
 }

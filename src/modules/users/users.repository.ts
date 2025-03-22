@@ -3,6 +3,8 @@ import { PrismaService } from '../app/prisma.service';
 import { USER_SELECT } from 'src/common/types/include/user';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRole } from '@prisma/client';
+import { InvitationStatus } from '@prisma/client';
 
 @Injectable()
 export class UsersRepository {
@@ -57,5 +59,31 @@ export class UsersRepository {
 
   async delete(id: string) {
     return this.prisma.user.delete({ where: { id } });
+  }
+
+  async findUserInvitation(userId: string) {
+    return this.prisma.userProject.findMany({
+      where: { userId, status: InvitationStatus.PENDING },
+      select: {
+        project: true,
+      },
+    });
+  }
+
+  async acceptJoinRequest(userId: string, projectId: string) {
+    return this.prisma.userProject.update({
+      where: { userId_projectId: { userId, projectId } },
+      data: {
+        role: UserRole.MEMBER,
+        status: InvitationStatus.ACCEPTED,
+        isActive: true,
+      },
+    });
+  }
+
+  async rejectJoinRequest(userId: string, projectId: string) {
+    return this.prisma.userProject.delete({
+      where: { userId_projectId: { userId, projectId } },
+    });
   }
 }

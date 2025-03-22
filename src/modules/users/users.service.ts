@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   Inject,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -10,6 +11,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { PasswordService } from '../password/password.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { InvitationStatus } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -135,6 +137,34 @@ export class UsersService {
     await this.cacheManager.del(`user_${id}`);
 
     await this.usersRepository.delete(id);
+  }
+
+  async findUserInvitation(userId: string) {
+    const invitations = await this.usersRepository.findUserInvitation(userId);
+    if (invitations.length === 0) {
+      throw new NotFoundException('No invitations found');
+    }
+    return invitations;
+  }
+
+  async respondToJoinProject(
+    userId: string,
+    projectId: string,
+    status: InvitationStatus,
+  ) {
+    const invitation = await this.usersRepository.findUserInvitation(userId);
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+    if (status === InvitationStatus.PENDING) {
+      throw new BadRequestException('Invitation is pending');
+    }
+    if (status === InvitationStatus.ACCEPTED) {
+      await this.cacheManager.del(`project_${projectId}`);
+      await this.cacheManager.del(`projects_${userId}`);
+      return this.usersRepository.acceptJoinRequest(userId, projectId);
+    }
+    return this.usersRepository.rejectJoinRequest(userId, projectId);
   }
 
   private async checkUserExistsByEmail(email: string) {

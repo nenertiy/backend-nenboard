@@ -1,9 +1,14 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ProjectRepository } from './project.repository';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { MediaService } from '../media/media.service';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { InvitationStatus } from '@prisma/client';
+import { InvitationStatus, UserRole } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 
@@ -96,8 +101,30 @@ export class ProjectsService {
     return project;
   }
 
-  async findUserInvitation(userId: string) {
-    const invitations = await this.projectRepository.findUserInvitation(userId);
+  async updateUserRole(userId: string, projectId: string, role: UserRole) {
+    const userProject = await this.projectRepository.findUserProject(
+      userId,
+      projectId,
+    );
+    if (!userProject) {
+      throw new NotFoundException('User not found in project');
+    }
+    if (userProject.status === InvitationStatus.PENDING) {
+      throw new BadRequestException('User is not in project');
+    }
+    if (role === UserRole.OWNER) {
+      throw new BadRequestException('Owner can be only one');
+    }
+    if (userProject.role === role) {
+      throw new BadRequestException('User already has this role');
+    }
+
+    return this.projectRepository.updateUserRole(userId, projectId, role);
+  }
+
+  async findProjectInvitations(projectId: string) {
+    const invitations =
+      await this.projectRepository.findProjectInvitations(projectId);
     if (invitations.length === 0) {
       throw new NotFoundException('No invitations found');
     }
@@ -105,20 +132,27 @@ export class ProjectsService {
     return invitations;
   }
 
-  async requestToJoinProject(email: string, projectId: string) {
-    return this.projectRepository.requestToJoinProject(email, projectId);
+  async inviteUserToProject(email: string, projectId: string) {
+    return this.projectRepository.inviteUserToProject(email, projectId);
   }
 
-  async respondToJoinProject(
-    userId: string,
-    projectId: string,
-    status: InvitationStatus,
-  ) {
-    if (status === InvitationStatus.ACCEPTED) {
-      await this.cacheManager.del(`project_${projectId}`);
-      await this.cacheManager.del(`projects_${userId}`);
-      return this.projectRepository.acceptJoinRequest(userId, projectId);
+  async deleteInvitation(invitationId: string) {
+    const invitation =
+      await this.projectRepository.findInvitation(invitationId);
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
     }
-    return this.projectRepository.rejectJoinRequest(userId, projectId);
+    return this.projectRepository.deleteInvitation(invitationId);
+  }
+
+  async deleteUserFromProject(userId: string, projectId: string) {
+    const userProject = await this.projectRepository.findUserProject(
+      userId,
+      projectId,
+    );
+    if (!userProject) {
+      throw new NotFoundException('User not found in project');
+    }
+    return this.projectRepository.deleteUserFromProject(userId, projectId);
   }
 }

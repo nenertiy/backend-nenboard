@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InvitationStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../app/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -60,21 +64,47 @@ export class ProjectRepository {
     });
   }
 
-  async findUserInvitation(userId: string) {
+  async findUserProject(userId: string, projectId: string) {
+    return this.prisma.userProject.findUnique({
+      where: { userId_projectId: { userId, projectId } },
+    });
+  }
+
+  async updateUserRole(userId: string, projectId: string, role: UserRole) {
+    return this.prisma.userProject.update({
+      where: { userId_projectId: { userId, projectId } },
+      data: { role },
+    });
+  }
+
+  async findInvitation(invitationId: string) {
+    return this.prisma.userProject.findUnique({
+      where: { id: invitationId },
+    });
+  }
+
+  async findProjectInvitations(projectId: string) {
     return this.prisma.userProject.findMany({
-      where: { userId, status: InvitationStatus.PENDING },
+      where: { projectId, status: InvitationStatus.PENDING },
       select: {
-        project: true,
+        user: true,
       },
     });
   }
 
-  async requestToJoinProject(email: string, projectId: string) {
+  async inviteUserToProject(email: string, projectId: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+    const userProject = await this.findUserProject(user.id, projectId);
+    if (userProject.status === InvitationStatus.PENDING) {
+      throw new ConflictException('User already invited to project');
+    }
+    if (userProject.status === InvitationStatus.ACCEPTED) {
+      throw new ConflictException('User already in project');
     }
     return this.prisma.userProject.create({
       data: {
@@ -87,18 +117,13 @@ export class ProjectRepository {
     });
   }
 
-  async acceptJoinRequest(userId: string, projectId: string) {
-    return this.prisma.userProject.update({
-      where: { userId_projectId: { userId, projectId } },
-      data: {
-        role: UserRole.MEMBER,
-        status: InvitationStatus.ACCEPTED,
-        isActive: true,
-      },
+  async deleteInvitation(invitationId: string) {
+    return this.prisma.userProject.delete({
+      where: { id: invitationId },
     });
   }
 
-  async rejectJoinRequest(userId: string, projectId: string) {
+  async deleteUserFromProject(userId: string, projectId: string) {
     return this.prisma.userProject.delete({
       where: { userId_projectId: { userId, projectId } },
     });

@@ -78,7 +78,7 @@ export class ProjectsController {
     return this.projectsService.deleteProject(id);
   }
 
-  @ApiOperation({ summary: 'Get all users projects' })
+  @ApiOperation({ summary: 'Get all user`s projects' })
   @ApiBearerAuth()
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -92,6 +92,33 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   findProject(@Param('id') id: string) {
     return this.projectsService.findProject(id);
+  }
+
+  @ApiOperation({ summary: 'Update a user`s role in a project' })
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        role: {
+          type: 'string',
+          enum: Object.values(UserRole).filter(
+            (role) => role !== UserRole.OWNER && role !== UserRole.INVITED,
+          ),
+        },
+      },
+    },
+  })
+  @Put(':id/users/:userId/role')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER)
+  updateUserRole(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body('role') role: UserRole,
+  ) {
+    return this.projectsService.updateUserRole(userId, id, role);
   }
 
   @ApiOperation({ summary: 'Invite a user to a project' })
@@ -111,42 +138,36 @@ export class ProjectsController {
     @Param('id') projectId: string,
     @Body('email') email: string,
   ) {
-    return this.projectsService.requestToJoinProject(email, projectId);
+    return this.projectsService.inviteUserToProject(email, projectId);
   }
 
-  @ApiOperation({ summary: 'Get all invitations for the current user' })
+  @ApiOperation({ summary: 'Get all sent invitations to the project' })
   @ApiBearerAuth()
-  @Get('invitations')
-  @UseGuards(JwtAuthGuard)
-  getUserInvitations(@DecodeUser() user: UserWithoutPassword) {
-    return this.projectsService.findUserInvitation(user.id);
+  @Get(':id/invitations')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
+  getProjectInvitations(@Param('id') projectId: string) {
+    return this.projectsService.findProjectInvitations(projectId);
   }
 
-  @ApiOperation({ summary: 'Accept or decline an invitation' })
+  @ApiOperation({ summary: 'Delete an invitation' })
   @ApiBearerAuth()
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        status: {
-          type: 'string',
-          enum: Object.values({ ACCEPTED: 'ACCEPTED', REJECTED: 'REJECTED' }),
-        },
-      },
-    },
-  })
-  @Put('invitations/:id')
-  @UseGuards(JwtAuthGuard)
-  respondToInvitation(
+  @Delete('invitations/:invitationId')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
+  deleteInvitation(@Param('invitationId') invitationId: string) {
+    return this.projectsService.deleteInvitation(invitationId);
+  }
+
+  @ApiOperation({ summary: 'Delete a user from a project' })
+  @ApiBearerAuth()
+  @Delete(':id/users/:userId')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
+  deleteUserFromProject(
     @Param('id') projectId: string,
-    @DecodeUser() user: UserWithoutPassword,
-    @Body('status') status: 'ACCEPTED' | 'REJECTED',
+    @Param('userId') userId: string,
   ) {
-    return this.projectsService.respondToJoinProject(
-      user.id,
-      projectId,
-      status,
-    );
+    return this.projectsService.deleteUserFromProject(userId, projectId);
   }
 }

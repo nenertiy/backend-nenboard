@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Param,
-  Patch,
   Query,
   UseGuards,
   Body,
@@ -12,6 +11,7 @@ import {
   FileTypeValidator,
   ParseFilePipe,
   Delete,
+  Put,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -42,7 +42,7 @@ export class UsersController {
 
   @ApiOperation({ summary: 'Update user' })
   @ApiBearerAuth()
-  @Patch()
+  @Put()
   @UseGuards(JwtAuthGuard)
   async updateUser(
     @DecodeUser() user: UserWithoutPassword,

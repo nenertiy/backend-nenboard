@@ -32,25 +32,6 @@ export class UsersController {
     private readonly mediaService: MediaService,
   ) {}
 
-  @ApiOperation({ summary: 'Get current user' })
-  @ApiBearerAuth()
-  @Get('profile')
-  @UseGuards(JwtAuthGuard)
-  async getMe(@DecodeUser() user: UserWithoutPassword) {
-    return this.usersService.findById(user.id);
-  }
-
-  @ApiOperation({ summary: 'Update user' })
-  @ApiBearerAuth()
-  @Put()
-  @UseGuards(JwtAuthGuard)
-  async updateUser(
-    @DecodeUser() user: UserWithoutPassword,
-    @Body() dto: UpdateUserDto,
-  ) {
-    return this.usersService.update(user.id, dto);
-  }
-
   @ApiOperation({ summary: 'Get all users' })
   @Get()
   async findAll(
@@ -68,6 +49,33 @@ export class UsersController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.usersService.findById(id);
+  }
+
+  @ApiOperation({ summary: 'Get current user' })
+  @ApiBearerAuth()
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  async getMe(@DecodeUser() user: UserWithoutPassword) {
+    return this.usersService.findById(user.id);
+  }
+
+  @ApiOperation({ summary: 'Update user' })
+  @ApiBearerAuth()
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateUser(
+    @DecodeUser() user: UserWithoutPassword,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.usersService.update(user.id, dto);
+  }
+
+  @ApiOperation({ summary: 'Delete user' })
+  @ApiBearerAuth()
+  @Delete('profile')
+  @UseGuards(JwtAuthGuard)
+  async deleteUser(@DecodeUser() user: UserWithoutPassword) {
+    return this.usersService.delete(user.id);
   }
 
   @ApiOperation({ summary: 'Upload avatar' })

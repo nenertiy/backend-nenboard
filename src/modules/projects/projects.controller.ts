@@ -33,6 +33,22 @@ import {
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
+  @ApiOperation({ summary: 'Get all user`s projects' })
+  @ApiBearerAuth()
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  findProjects(@DecodeUser() user: UserWithoutPassword) {
+    return this.projectsService.findProjects(user.id);
+  }
+
+  @ApiOperation({ summary: 'Get a project by id' })
+  @ApiBearerAuth()
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  findProject(@Param('id') id: string) {
+    return this.projectsService.findProject(id);
+  }
+
   @ApiOperation({ summary: 'Create a new project' })
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
@@ -78,20 +94,36 @@ export class ProjectsController {
     return this.projectsService.deleteProject(id);
   }
 
-  @ApiOperation({ summary: 'Get all user`s projects' })
+  @ApiOperation({ summary: 'Invite a user to a project' })
   @ApiBearerAuth()
-  @Get()
-  @UseGuards(JwtAuthGuard)
-  findProjects(@DecodeUser() user: UserWithoutPassword) {
-    return this.projectsService.findProjects(user.id);
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string' },
+      },
+    },
+  })
+  @Post(':id/invite')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
+  inviteUserToProject(
+    @Param('id') projectId: string,
+    @Body('email') email: string,
+  ) {
+    return this.projectsService.inviteUserToProject(email, projectId);
   }
 
-  @ApiOperation({ summary: 'Get a project by id' })
+  @ApiOperation({ summary: 'Delete a user from a project' })
   @ApiBearerAuth()
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  findProject(@Param('id') id: string) {
-    return this.projectsService.findProject(id);
+  @Delete(':id/users/:userId')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
+  deleteUserFromProject(
+    @Param('id') projectId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.projectsService.deleteUserFromProject(userId, projectId);
   }
 
   @ApiOperation({ summary: 'Update a user`s role in a project' })
@@ -121,26 +153,6 @@ export class ProjectsController {
     return this.projectsService.updateUserRole(userId, id, role);
   }
 
-  @ApiOperation({ summary: 'Invite a user to a project' })
-  @ApiBearerAuth()
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        email: { type: 'string' },
-      },
-    },
-  })
-  @Post(':id/invite')
-  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
-  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  inviteUserToProject(
-    @Param('id') projectId: string,
-    @Body('email') email: string,
-  ) {
-    return this.projectsService.inviteUserToProject(email, projectId);
-  }
-
   @ApiOperation({ summary: 'Get all sent invitations to the project' })
   @ApiBearerAuth()
   @Get(':id/invitations')
@@ -157,17 +169,5 @@ export class ProjectsController {
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
   deleteInvitation(@Param('invitationId') invitationId: string) {
     return this.projectsService.deleteInvitation(invitationId);
-  }
-
-  @ApiOperation({ summary: 'Delete a user from a project' })
-  @ApiBearerAuth()
-  @Delete(':id/users/:userId')
-  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
-  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  deleteUserFromProject(
-    @Param('id') projectId: string,
-    @Param('userId') userId: string,
-  ) {
-    return this.projectsService.deleteUserFromProject(userId, projectId);
   }
 }

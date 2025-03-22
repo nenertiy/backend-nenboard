@@ -27,7 +27,7 @@ export class MediaService implements OnModuleInit {
   async uploadFile(file: Express.Multer.File, type: MediaType) {
     const key = `${type}-${uuidv4()}-${file.originalname}`;
     try {
-      const upload = await this.s3.putObject({
+      await this.s3.putObject({
         Bucket: this.bucketName,
         Key: key,
         Body: file.buffer,
@@ -69,6 +69,10 @@ export class MediaService implements OnModuleInit {
   }
 
   async delete(id: string) {
+    const media = await this.mediaRepository.findOne(id);
+    if (!media) {
+      throw new NotFoundException();
+    }
     await this.mediaRepository.delete(id);
   }
 
@@ -98,5 +102,25 @@ export class MediaService implements OnModuleInit {
     }
     await this.delete(user.avatar.id);
     await this.deleteObject(user.avatar.url);
+  }
+
+  async uploadProjectImage(projectId: string, file: Express.Multer.File) {
+    const project = await this.mediaRepository.findProjectImage(projectId);
+    if (project.projectImage) {
+      await this.delete(project.projectImage.id);
+      await this.deleteObject(project.projectImage.url);
+    }
+    const upload = await this.uploadFile(file, MediaType.PROJECT);
+    await this.mediaRepository.uploadProjectImage(projectId, upload.id);
+    return upload;
+  }
+
+  async deleteProjectImage(projectId: string) {
+    const project = await this.mediaRepository.findProjectImage(projectId);
+    if (!project.projectImage) {
+      throw new NotFoundException('Project does not have an image');
+    }
+    await this.delete(project.projectImage.id);
+    await this.deleteObject(project.projectImage.url);
   }
 }

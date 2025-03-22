@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../app/prisma.service';
 import { CreateMediaDto } from './dto/create-media.dto';
+import { PROJECT_SELECT } from 'src/common/types/include/project';
 
 @Injectable()
 export class MediaRepository {
@@ -43,6 +44,20 @@ export class MediaRepository {
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: { avatar: true },
+    });
+  }
+
+  async uploadProjectImage(projectId: string, mediaId: string) {
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data: { projectImageId: mediaId },
+    });
+  }
+
+  async findProjectImage(projectId: string) {
+    return this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: PROJECT_SELECT,
     });
   }
 }

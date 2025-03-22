@@ -22,7 +22,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MediaService } from '../media/media.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { MediaType } from '@prisma/client';
+import { InvitationStatus, MediaType } from '@prisma/client';
 
 @ApiTags('Users')
 @Controller('users')
@@ -118,5 +118,43 @@ export class UsersController {
   async deleteAvatar(@DecodeUser() user: UserWithoutPassword) {
     await this.mediaService.deleteAvatar(user.id);
     return { message: 'Avatar deleted' };
+  }
+
+  @ApiOperation({ summary: 'Get user invitations' })
+  @ApiBearerAuth()
+  @Get('invitations')
+  @UseGuards(JwtAuthGuard)
+  async getUserInvitations(@DecodeUser() user: UserWithoutPassword) {
+    return this.usersService.findUserInvitation(user.id);
+  }
+
+  @ApiOperation({ summary: 'Accept or reject an invitation' })
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: Object.values(InvitationStatus).filter(
+            (status) => status !== InvitationStatus.PENDING,
+          ),
+        },
+      },
+    },
+  })
+  @Put('invitations/:invitationId')
+  @UseGuards(JwtAuthGuard)
+  respondToInvitation(
+    @Param('invitationId') invitationId: string,
+    @DecodeUser() user: UserWithoutPassword,
+    @Body('status') status: InvitationStatus,
+  ) {
+    return this.usersService.respondToJoinProject(
+      user.id,
+      invitationId,
+      status,
+    );
   }
 }

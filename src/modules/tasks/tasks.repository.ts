@@ -48,16 +48,9 @@ export class TasksRepository {
   }
 
   async deleteTask(userId: string, taskId: string) {
-    return this.prisma.task.update({
+    return this.prisma.task.delete({
       where: {
         id: taskId,
-      },
-      data: {
-        isDeleted: true,
-        deletedByUserId: userId,
-        deletedAt: new Date(),
-        assignedToUserId: null,
-        assignedByUserId: null,
       },
     });
   }
@@ -104,7 +97,6 @@ export class TasksRepository {
       where: {
         projectId,
         isArchived: false,
-        isDeleted: false,
       },
     });
   }

@@ -4,7 +4,7 @@ export const PROJECT_SELECT: Prisma.ProjectSelect = {
   id: true,
   name: true,
   description: true,
-  projectImage: true,
+  projectImage: { select: { id: true, url: true, filename: true } },
   createdAt: true,
   updatedAt: true,
   users: {
@@ -13,17 +13,50 @@ export const PROJECT_SELECT: Prisma.ProjectSelect = {
       status: true,
       isActive: true,
       userId: true,
-      user: true,
+      user: {
+        select: {
+          username: true,
+          email: true,
+          avatar: {
+            select: {
+              id: true,
+              url: true,
+              filename: true,
+            },
+          },
+        },
+      },
     },
   },
-  tasks: true,
+  tasks: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      status: true,
+      priority: true,
+      dueDate: true,
+      completedAt: true,
+      isDeleted: true,
+      deletedAt: true,
+      deletedBy: { select: { id: true, username: true } },
+      isArchived: true,
+      archivedAt: true,
+      archivedBy: { select: { id: true, username: true } },
+      createdBy: { select: { id: true, username: true } },
+      assignedTo: { select: { id: true, username: true } },
+      assignedBy: { select: { id: true, username: true } },
+      createdAt: true,
+      updatedAt: true,
+    },
+  },
 };
 
 export const PROJECTS_SELECT: Prisma.ProjectSelect = {
   id: true,
   name: true,
   description: true,
-  projectImage: true,
+  projectImage: { select: { id: true, url: true, filename: true } },
   createdAt: true,
   updatedAt: true,
 };

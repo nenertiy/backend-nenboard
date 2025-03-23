@@ -9,6 +9,7 @@ import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { TokenModule } from '../token/token.module';
 import { ProjectsModule } from '../projects/projects.module';
+import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { ProjectsModule } from '../projects/projects.module';
     }),
     UsersModule,
     ProjectsModule,
+    TasksModule,
     AuthModule,
     TokenModule,
   ],

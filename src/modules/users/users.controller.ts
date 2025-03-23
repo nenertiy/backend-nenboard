@@ -32,25 +32,6 @@ export class UsersController {
     private readonly mediaService: MediaService,
   ) {}
 
-  @ApiOperation({ summary: 'Get all users' })
-  @Get()
-  async findAll(
-    @Query('query') query: string,
-    @Query('take') take: number = 10,
-    @Query('skip') skip: number = 0,
-  ) {
-    if (query) {
-      return this.usersService.search(query, take, skip);
-    }
-    return this.usersService.findAll(take, skip);
-  }
-
-  @ApiOperation({ summary: 'Get user by id' })
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.usersService.findById(id);
-  }
-
   @ApiOperation({ summary: 'Get current user' })
   @ApiBearerAuth()
   @Get('profile')
@@ -76,6 +57,64 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   async deleteUser(@DecodeUser() user: UserWithoutPassword) {
     return this.usersService.delete(user.id);
+  }
+
+  @ApiOperation({ summary: 'Get user invitations' })
+  @ApiBearerAuth()
+  @Get('invitations')
+  @UseGuards(JwtAuthGuard)
+  async getUserInvitations(@DecodeUser() user: UserWithoutPassword) {
+    return this.usersService.findUserInvitation(user.id);
+  }
+
+  @ApiOperation({ summary: 'Accept or reject an invitation' })
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: Object.values(InvitationStatus).filter(
+            (status) => status !== InvitationStatus.PENDING,
+          ),
+        },
+      },
+    },
+  })
+  @Put('invitations/:invitationId')
+  @UseGuards(JwtAuthGuard)
+  respondToInvitation(
+    @Param('invitationId') invitationId: string,
+    @DecodeUser() user: UserWithoutPassword,
+    @Body('status') status: InvitationStatus,
+  ) {
+    return this.usersService.respondToJoinProject(
+      user.id,
+      invitationId,
+      status,
+    );
+  }
+
+  @ApiOperation({ summary: 'Get all users' })
+  @Get()
+  async findAll(
+    @Query('query') query: string,
+    @Query('take') take: number = 10,
+    @Query('skip') skip: number = 0,
+  ) {
+    if (query) {
+      return this.usersService.search(query, take, skip);
+    }
+    return this.usersService.findAll(take, skip);
+  }
+
+  @ApiOperation({ summary: 'Get user by id' })
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.usersService.findById(id);
   }
 
   @ApiOperation({ summary: 'Upload avatar' })
@@ -126,43 +165,5 @@ export class UsersController {
   async deleteAvatar(@DecodeUser() user: UserWithoutPassword) {
     await this.mediaService.deleteAvatar(user.id);
     return { message: 'Avatar deleted' };
-  }
-
-  @ApiOperation({ summary: 'Get user invitations' })
-  @ApiBearerAuth()
-  @Get('invitations')
-  @UseGuards(JwtAuthGuard)
-  async getUserInvitations(@DecodeUser() user: UserWithoutPassword) {
-    return this.usersService.findUserInvitation(user.id);
-  }
-
-  @ApiOperation({ summary: 'Accept or reject an invitation' })
-  @ApiBearerAuth()
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        status: {
-          type: 'string',
-          enum: Object.values(InvitationStatus).filter(
-            (status) => status !== InvitationStatus.PENDING,
-          ),
-        },
-      },
-    },
-  })
-  @Put('invitations/:invitationId')
-  @UseGuards(JwtAuthGuard)
-  respondToInvitation(
-    @Param('invitationId') invitationId: string,
-    @DecodeUser() user: UserWithoutPassword,
-    @Body('status') status: InvitationStatus,
-  ) {
-    return this.usersService.respondToJoinProject(
-      user.id,
-      invitationId,
-      status,
-    );
   }
 }

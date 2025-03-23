@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../app/prisma.service';
 import { USER_SELECT } from 'src/common/types/include/user';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -61,10 +61,23 @@ export class UsersRepository {
     return this.prisma.user.delete({ where: { id } });
   }
 
-  async findUserInvitation(userId: string) {
+  async findUserInvitations(userId: string) {
     return this.prisma.userProject.findMany({
-      where: { userId, status: InvitationStatus.PENDING },
-      select: {
+      where: {
+        userId,
+        status: InvitationStatus.PENDING,
+        role: UserRole.INVITED,
+      },
+      include: {
+        project: true,
+      },
+    });
+  }
+
+  async findUserInvitation(invitationId: string) {
+    return this.prisma.userProject.findUnique({
+      where: { id: invitationId },
+      include: {
         project: true,
       },
     });

@@ -140,7 +140,7 @@ export class UsersService {
   }
 
   async findUserInvitation(userId: string) {
-    const invitations = await this.usersRepository.findUserInvitation(userId);
+    const invitations = await this.usersRepository.findUserInvitations(userId);
     if (invitations.length === 0) {
       throw new NotFoundException('No invitations found');
     }
@@ -149,22 +149,37 @@ export class UsersService {
 
   async respondToJoinProject(
     userId: string,
-    projectId: string,
+    invitationId: string,
     status: InvitationStatus,
   ) {
-    const invitation = await this.usersRepository.findUserInvitation(userId);
+    const invitation =
+      await this.usersRepository.findUserInvitation(invitationId);
+
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
     }
+
     if (status === InvitationStatus.PENDING) {
       throw new BadRequestException('Invitation is pending');
     }
+
     if (status === InvitationStatus.ACCEPTED) {
-      await this.cacheManager.del(`project_${projectId}`);
+      await this.cacheManager.del(`project_${invitation.projectId}`);
       await this.cacheManager.del(`projects_${userId}`);
-      return this.usersRepository.acceptJoinRequest(userId, projectId);
+
+      await this.usersRepository.acceptJoinRequest(
+        userId,
+        invitation.projectId,
+      );
+      return {
+        message: 'Invitation accepted',
+      };
     }
-    return this.usersRepository.rejectJoinRequest(userId, projectId);
+
+    await this.usersRepository.rejectJoinRequest(userId, invitation.projectId);
+    return {
+      message: 'Invitation rejected',
+    };
   }
 
   private async checkUserExistsByEmail(email: string) {

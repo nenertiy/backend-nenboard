@@ -25,13 +25,18 @@ export class ProjectsService {
     data: CreateProjectDto,
     file?: Express.Multer.File,
   ) {
-    const project = await this.projectRepository.createProject(userId, data);
+    const createdProject = await this.projectRepository.createProject(
+      userId,
+      data,
+    );
     if (file) {
-      await this.mediaService.uploadProjectImage(project.id, file);
+      await this.mediaService.uploadProjectImage(createdProject.id, file);
     }
 
-    await this.cacheManager.set(`project_${project.id}`, project);
+    await this.cacheManager.set(`project_${createdProject.id}`, createdProject);
     await this.cacheManager.del(`projects_${userId}`);
+
+    const project = await this.projectRepository.findProject(createdProject.id);
     return project;
   }
 
@@ -64,6 +69,7 @@ export class ProjectsService {
     for (const user of project.users) {
       await this.cacheManager.del(`projects_${user.userId}`);
     }
+
     await this.cacheManager.del(`project_${projectId}`);
 
     return { message: 'Project deleted successfully' };
@@ -101,6 +107,22 @@ export class ProjectsService {
     return project;
   }
 
+  async findUsersByProjectId(projectId: string) {
+    const cachedUsers = await this.cacheManager.get(`users_${projectId}`);
+    if (cachedUsers) {
+      return cachedUsers;
+    }
+
+    const users = await this.projectRepository.findUsersByProjectId(projectId);
+    if (users.length === 0) {
+      throw new NotFoundException('No users found');
+    }
+
+    await this.cacheManager.set(`users_${projectId}`, users);
+
+    return users;
+  }
+
   async updateUserRole(userId: string, projectId: string, role: UserRole) {
     const userProject = await this.projectRepository.findUserProject(
       userId,
@@ -123,17 +145,33 @@ export class ProjectsService {
   }
 
   async findProjectInvitations(projectId: string) {
+    const cachedInvitations = await this.cacheManager.get(
+      `invitations_${projectId}`,
+    );
+    if (cachedInvitations) {
+      return cachedInvitations;
+    }
+
     const invitations =
       await this.projectRepository.findProjectInvitations(projectId);
     if (invitations.length === 0) {
       throw new NotFoundException('No invitations found');
     }
 
+    await this.cacheManager.set(`invitations_${projectId}`, invitations);
+
     return invitations;
   }
 
   async inviteUserToProject(email: string, projectId: string) {
-    return this.projectRepository.inviteUserToProject(email, projectId);
+    const invitation = await this.projectRepository.inviteUserToProject(
+      email,
+      projectId,
+    );
+
+    await this.cacheManager.del(`invitations_${projectId}`);
+    await this.cacheManager.set(`invitation_${invitation.id}`, invitation);
+    return invitation;
   }
 
   async deleteInvitation(invitationId: string) {
@@ -142,7 +180,14 @@ export class ProjectsService {
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
     }
-    return this.projectRepository.deleteInvitation(invitationId);
+    await this.projectRepository.deleteInvitation(invitationId);
+
+    await this.cacheManager.del(`invitation_${invitationId}`);
+    await this.cacheManager.del(`invitations_${invitation.projectId}`);
+
+    return {
+      message: `Invitation for ${invitation.user.email} deleted successfully`,
+    };
   }
 
   async deleteUserFromProject(userId: string, projectId: string) {
@@ -153,6 +198,13 @@ export class ProjectsService {
     if (!userProject) {
       throw new NotFoundException('User not found in project');
     }
-    return this.projectRepository.deleteUserFromProject(userId, projectId);
+    await this.projectRepository.deleteUserFromProject(userId, projectId);
+
+    await this.cacheManager.del(`users_${projectId}`);
+    await this.cacheManager.del(`project_${projectId}`);
+
+    return {
+      message: `User ${userProject.user.email} deleted from project successfully`,
+    };
   }
 }

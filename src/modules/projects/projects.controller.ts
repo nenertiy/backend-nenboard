@@ -27,11 +27,15 @@ import {
   ApiBody,
   ApiConsumes,
 } from '@nestjs/swagger';
-
+import { TasksService } from '../tasks/tasks.service';
+import { CreateTaskDto } from '../tasks/dto/create-task.dto';
 @ApiTags('Projects')
 @Controller('projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly tasksService: TasksService,
+  ) {}
 
   @ApiOperation({ summary: 'Get all user`s projects' })
   @ApiBearerAuth()
@@ -94,6 +98,37 @@ export class ProjectsController {
     return this.projectsService.deleteProject(id);
   }
 
+  @ApiOperation({ summary: 'Create a new task' })
+  @ApiBearerAuth()
+  @Post(':id/tasks')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
+  createTask(
+    @Param('id') id: string,
+    @Body() createTaskDto: CreateTaskDto,
+    @DecodeUser() user: UserWithoutPassword,
+  ) {
+    return this.tasksService.createTask(user.id, id, createTaskDto);
+  }
+
+  @ApiOperation({ summary: 'Get all project tasks' })
+  @ApiBearerAuth()
+  @Get(':id/tasks')
+  @UseGuards(JwtAuthGuard)
+  getProjectTasks(@Param('id') id: string) {
+    return this.tasksService.getProjectTasks(id);
+  }
+
+  @ApiOperation({
+    summary: 'Get all project tasks grouped by status and priority',
+  })
+  @ApiBearerAuth()
+  @Get(':id/tasks/grouped')
+  @UseGuards(JwtAuthGuard)
+  getGroupedProjectTasks(@Param('id') id: string) {
+    return this.tasksService.getGroupedProjectTasks(id);
+  }
+
   @ApiOperation({ summary: 'Invite a user to a project' })
   @ApiBearerAuth()
   @ApiBody({
@@ -112,6 +147,14 @@ export class ProjectsController {
     @Body('email') email: string,
   ) {
     return this.projectsService.inviteUserToProject(email, projectId);
+  }
+
+  @ApiOperation({ summary: 'Get all users by project id' })
+  @ApiBearerAuth()
+  @Get(':id/users')
+  @UseGuards(JwtAuthGuard)
+  getUsersByProjectId(@Param('id') projectId: string) {
+    return this.projectsService.findUsersByProjectId(projectId);
   }
 
   @ApiOperation({ summary: 'Delete a user from a project' })
@@ -142,6 +185,7 @@ export class ProjectsController {
       },
     },
   })
+  @UseInterceptors(FileInterceptor('file'))
   @Put(':id/users/:userId/role')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER)

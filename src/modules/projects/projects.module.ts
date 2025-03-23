@@ -4,9 +4,10 @@ import { ProjectsController } from './projects.controller';
 import { ProjectRepository } from './project.repository';
 import { PrismaService } from '../app/prisma.service';
 import { MediaModule } from '../media/media.module';
+import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
-  imports: [MediaModule],
+  imports: [MediaModule, TasksModule],
   controllers: [ProjectsController],
   providers: [ProjectsService, ProjectRepository, PrismaService],
 })

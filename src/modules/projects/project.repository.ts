@@ -19,6 +19,7 @@ export class ProjectRepository {
     return this.prisma.$transaction(async (prisma) => {
       const project = await prisma.project.create({
         data,
+        include: { projectImage: true },
       });
 
       await prisma.userProject.create({
@@ -43,7 +44,7 @@ export class ProjectRepository {
   }
 
   async deleteProject(projectId: string) {
-    return this.prisma.project.delete({
+    await this.prisma.project.delete({
       where: { id: projectId },
     });
   }
@@ -64,9 +65,23 @@ export class ProjectRepository {
     });
   }
 
+  async findUsersByProjectId(projectId: string) {
+    return this.prisma.userProject.findMany({
+      where: { projectId, status: InvitationStatus.ACCEPTED },
+      select: {
+        user: { select: { id: true, email: true, username: true } },
+      },
+    });
+  }
+
   async findUserProject(userId: string, projectId: string) {
     return this.prisma.userProject.findUnique({
       where: { userId_projectId: { userId, projectId } },
+      include: {
+        user: {
+          select: { id: true, email: true, username: true, avatar: true },
+        },
+      },
     });
   }
 
@@ -80,14 +95,21 @@ export class ProjectRepository {
   async findInvitation(invitationId: string) {
     return this.prisma.userProject.findUnique({
       where: { id: invitationId },
+      include: {
+        user: {
+          select: { id: true, email: true, username: true, avatar: true },
+        },
+      },
     });
   }
 
   async findProjectInvitations(projectId: string) {
     return this.prisma.userProject.findMany({
       where: { projectId, status: InvitationStatus.PENDING },
-      select: {
-        user: true,
+      include: {
+        user: {
+          select: { id: true, email: true, username: true, avatar: true },
+        },
       },
     });
   }
@@ -100,12 +122,16 @@ export class ProjectRepository {
       throw new NotFoundException('User not found');
     }
     const userProject = await this.findUserProject(user.id, projectId);
-    if (userProject.status === InvitationStatus.PENDING) {
-      throw new ConflictException('User already invited to project');
+
+    if (userProject) {
+      if (userProject.status === InvitationStatus.PENDING) {
+        throw new ConflictException('User already invited to project');
+      }
+      if (userProject.status === InvitationStatus.ACCEPTED) {
+        throw new ConflictException('User already in project');
+      }
     }
-    if (userProject.status === InvitationStatus.ACCEPTED) {
-      throw new ConflictException('User already in project');
-    }
+
     return this.prisma.userProject.create({
       data: {
         userId: user.id,
@@ -113,6 +139,11 @@ export class ProjectRepository {
         role: UserRole.INVITED,
         status: InvitationStatus.PENDING,
         isActive: false,
+      },
+      include: {
+        user: {
+          select: { id: true, email: true, username: true, avatar: true },
+        },
       },
     });
   }

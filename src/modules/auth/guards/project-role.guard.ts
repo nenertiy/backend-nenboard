@@ -13,8 +13,8 @@ import { PROJECT_ROLE_KEY } from 'src/common/decorators/project-role.decorator';
 @Injectable()
 export class ProjectRoleGuard implements CanActivate {
   constructor(
-    private reflector: Reflector,
-    private prisma: PrismaService,
+    private readonly reflector: Reflector,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -29,18 +29,44 @@ export class ProjectRoleGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const userId = request.user?.id;
-    const projectId = request.params.id;
+    if (!userId) {
+      throw new ForbiddenException('Unauthorized');
+    }
+
+    let projectId = request.params.projectId || request.params.id;
+    const invitationId = request.params.invitationId;
+
+    if (invitationId && request.url.includes('/invitations/')) {
+      const invitation = await this.prisma.userProject.findUnique({
+        where: { id: invitationId },
+      });
+
+      if (!invitation) {
+        throw new NotFoundException('Invitation not found');
+      }
+
+      projectId = invitation.projectId;
+    }
+
+    if (projectId && request.url.includes('/tasks/')) {
+      const task = await this.prisma.task.findUnique({
+        where: { id: projectId },
+        select: { projectId: true },
+      });
+
+      if (!task) {
+        throw new NotFoundException('Task not found');
+      }
+
+      projectId = task.projectId;
+    }
+
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
-      select: { users: { select: { userId: true } } },
     });
 
     if (!project) {
       throw new NotFoundException('Project not found');
-    }
-
-    if (!userId || !projectId) {
-      throw new ForbiddenException('No access');
     }
 
     const projectUser = await this.prisma.userProject.findUnique({

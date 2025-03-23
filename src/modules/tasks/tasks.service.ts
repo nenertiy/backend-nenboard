@@ -42,6 +42,7 @@ export class TasksService {
     if (!task) {
       throw new NotFoundException('Task not found');
     }
+
     return this.tasksRepository.deleteTask(userId, taskId);
   }
 
@@ -53,10 +54,8 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    if (task.isDeleted || task.isArchived) {
-      throw new BadRequestException(
-        'Cannot update status of a deleted or archived task',
-      );
+    if (task.isArchived) {
+      throw new BadRequestException('Cannot update status of an archived task');
     }
 
     if (!Object.values(TaskStatus).includes(status)) {
@@ -84,9 +83,9 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    if (task.isDeleted || task.isArchived) {
+    if (task.isArchived) {
       throw new BadRequestException(
-        'Cannot update priority of a deleted or archived task',
+        'Cannot update priority of an archived task',
       );
     }
 

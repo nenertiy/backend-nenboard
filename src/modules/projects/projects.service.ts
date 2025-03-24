@@ -11,7 +11,6 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { InvitationStatus, UserRole } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -37,6 +36,7 @@ export class ProjectsService {
     await this.cacheManager.del(`projects_${userId}`);
 
     const project = await this.projectRepository.findProject(createdProject.id);
+
     return project;
   }
 
@@ -171,6 +171,7 @@ export class ProjectsService {
 
     await this.cacheManager.del(`invitations_${projectId}`);
     await this.cacheManager.set(`invitation_${invitation.id}`, invitation);
+
     return invitation;
   }
 
@@ -180,14 +181,11 @@ export class ProjectsService {
     if (!invitation) {
       throw new NotFoundException('Invitation not found');
     }
-    await this.projectRepository.deleteInvitation(invitationId);
 
     await this.cacheManager.del(`invitation_${invitationId}`);
     await this.cacheManager.del(`invitations_${invitation.projectId}`);
 
-    return {
-      message: `Invitation for ${invitation.user.email} deleted successfully`,
-    };
+    return this.projectRepository.deleteInvitation(invitationId);
   }
 
   async deleteUserFromProject(userId: string, projectId: string) {
@@ -198,13 +196,10 @@ export class ProjectsService {
     if (!userProject) {
       throw new NotFoundException('User not found in project');
     }
-    await this.projectRepository.deleteUserFromProject(userId, projectId);
 
     await this.cacheManager.del(`users_${projectId}`);
     await this.cacheManager.del(`project_${projectId}`);
 
-    return {
-      message: `User ${userProject.user.email} deleted from project successfully`,
-    };
+    return this.projectRepository.deleteUserFromProject(userId, projectId);
   }
 }

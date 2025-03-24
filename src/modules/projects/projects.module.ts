@@ -5,9 +5,10 @@ import { ProjectRepository } from './project.repository';
 import { PrismaService } from '../app/prisma.service';
 import { MediaModule } from '../media/media.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 
 @Module({
-  imports: [MediaModule, TasksModule],
+  imports: [MediaModule, TasksModule, ActivityLogModule],
   controllers: [ProjectsController],
   providers: [ProjectsService, ProjectRepository, PrismaService],
 })

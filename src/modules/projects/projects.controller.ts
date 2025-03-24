@@ -19,7 +19,7 @@ import { UserWithoutPassword } from 'src/common/types/user';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectRole } from 'src/common/decorators/project-role.decorator';
 import { ProjectRoleGuard } from 'src/modules/auth/guards/project-role.guard';
-import { UserRole } from '@prisma/client';
+import { UserRole, ActivityLogAction } from '@prisma/client';
 import {
   ApiTags,
   ApiOperation,
@@ -29,12 +29,15 @@ import {
 } from '@nestjs/swagger';
 import { TasksService } from '../tasks/tasks.service';
 import { CreateTaskDto } from '../tasks/dto/create-task.dto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+
 @ApiTags('Projects')
 @Controller('projects')
 export class ProjectsController {
   constructor(
     private readonly projectsService: ProjectsService,
     private readonly tasksService: TasksService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   @ApiOperation({ summary: 'Get all user`s projects' })
@@ -69,12 +72,23 @@ export class ProjectsController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
-  createProject(
+  async createProject(
     @Body() createProjectDto: CreateProjectDto,
     @DecodeUser() user: UserWithoutPassword,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.projectsService.createProject(user.id, createProjectDto, file);
+    const project = await this.projectsService.createProject(
+      user.id,
+      createProjectDto,
+      file,
+    );
+
+    await this.activityLogService.createActivityLog(user.id, project.id, null, {
+      title: `Project ${project.name} created`,
+      action: ActivityLogAction.CREATED,
+    });
+
+    return project;
   }
 
   @ApiOperation({ summary: 'Update a project' })
@@ -82,11 +96,22 @@ export class ProjectsController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER)
-  updateProject(
+  async updateProject(
     @Param('id') id: string,
+    @DecodeUser() user: UserWithoutPassword,
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
-    return this.projectsService.updateProject(id, updateProjectDto);
+    const project = await this.projectsService.updateProject(
+      id,
+      updateProjectDto,
+    );
+
+    await this.activityLogService.createActivityLog(user.id, id, null, {
+      title: `Project ${project.name} updated`,
+      action: ActivityLogAction.UPDATED,
+    });
+
+    return project;
   }
 
   @ApiOperation({ summary: 'Delete a project' })
@@ -94,7 +119,9 @@ export class ProjectsController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER)
-  deleteProject(@Param('id') id: string) {
+  async deleteProject(@Param('id') id: string) {
+    await this.activityLogService.deleteProjectActivityLogs(id);
+
     return this.projectsService.deleteProject(id);
   }
 
@@ -103,12 +130,19 @@ export class ProjectsController {
   @Post(':id/tasks')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  createTask(
+  async createTask(
     @Param('id') id: string,
     @Body() createTaskDto: CreateTaskDto,
     @DecodeUser() user: UserWithoutPassword,
   ) {
-    return this.tasksService.createTask(user.id, id, createTaskDto);
+    const task = await this.tasksService.createTask(user.id, id, createTaskDto);
+
+    await this.activityLogService.createActivityLog(user.id, id, task.id, {
+      title: `Task ${task.title} created`,
+      action: ActivityLogAction.CREATED,
+    });
+
+    return task;
   }
 
   @ApiOperation({ summary: 'Get all project tasks' })
@@ -142,11 +176,26 @@ export class ProjectsController {
   @Post(':id/invite')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  inviteUserToProject(
+  async inviteUserToProject(
     @Param('id') projectId: string,
     @Body('email') email: string,
   ) {
-    return this.projectsService.inviteUserToProject(email, projectId);
+    const invitation = await this.projectsService.inviteUserToProject(
+      email,
+      projectId,
+    );
+
+    await this.activityLogService.createActivityLog(
+      invitation.user.id,
+      projectId,
+      null,
+      {
+        title: `User ${invitation.user.email} invited to project ${projectId}`,
+        action: ActivityLogAction.CREATED,
+      },
+    );
+
+    return invitation;
   }
 
   @ApiOperation({ summary: 'Get all users by project id' })
@@ -162,11 +211,23 @@ export class ProjectsController {
   @Delete(':id/users/:userId')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  deleteUserFromProject(
+  async deleteUserFromProject(
     @Param('id') projectId: string,
     @Param('userId') userId: string,
   ) {
-    return this.projectsService.deleteUserFromProject(userId, projectId);
+    const userProject = await this.projectsService.deleteUserFromProject(
+      userId,
+      projectId,
+    );
+
+    await this.activityLogService.createActivityLog(userId, projectId, null, {
+      title: `User ${userProject.userId} deleted from project ${projectId}`,
+      action: ActivityLogAction.DELETED,
+    });
+
+    return {
+      message: `User ${userProject.userId} deleted from project successfully`,
+    };
   }
 
   @ApiOperation({ summary: 'Update a user`s role in a project' })
@@ -189,12 +250,23 @@ export class ProjectsController {
   @Put(':id/users/:userId/role')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER)
-  updateUserRole(
+  async updateUserRole(
     @Param('id') id: string,
     @Param('userId') userId: string,
     @Body('role') role: UserRole,
   ) {
-    return this.projectsService.updateUserRole(userId, id, role);
+    const userProject = await this.projectsService.updateUserRole(
+      userId,
+      id,
+      role,
+    );
+
+    await this.activityLogService.createActivityLog(userId, id, null, {
+      title: `User ${userProject.userId} role updated to ${role}`,
+      action: ActivityLogAction.UPDATED,
+    });
+
+    return userProject;
   }
 
   @ApiOperation({ summary: 'Get all sent invitations to the project' })
@@ -211,7 +283,22 @@ export class ProjectsController {
   @Delete('invitations/:invitationId')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  deleteInvitation(@Param('invitationId') invitationId: string) {
-    return this.projectsService.deleteInvitation(invitationId);
+  async deleteInvitation(@Param('invitationId') invitationId: string) {
+    const invitation =
+      await this.projectsService.deleteInvitation(invitationId);
+
+    await this.activityLogService.createActivityLog(
+      invitation.userId,
+      invitation.projectId,
+      null,
+      {
+        title: `Invitation for ${invitation.userId} deleted successfully`,
+        action: ActivityLogAction.DELETED,
+      },
+    );
+
+    return {
+      message: `Invitation for ${invitation.userId} deleted successfully`,
+    };
   }
 }

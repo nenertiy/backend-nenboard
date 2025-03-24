@@ -1,11 +1,12 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { ActivityLogRepository } from './activity-log.repository';
-import { CreateActivityLogDto } from './dto/create-activity-log.dto';
+import { Response } from 'express';
 import { createWriteStream, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { ActivityLogRepository } from './activity-log.repository';
+import { CreateActivityLogDto } from './dto/create-activity-log.dto';
 import { parse } from 'json2csv';
 import * as PDFDocument from 'pdfkit';
-
+import * as archiver from 'archiver';
 @Injectable()
 export class ActivityLogService {
   constructor(private readonly activityLogRepository: ActivityLogRepository) {}
@@ -32,7 +33,24 @@ export class ActivityLogService {
     return this.activityLogRepository.findActivityLog(id);
   }
 
-  async deleteProjectActivityLogs(projectId: string) {
+  async deleteProjectActivityLogs(projectId: string, res: Response) {
+    const jsonFilePath = await this.exportActivityLogs(projectId, 'json');
+    const csvFilePath = await this.exportActivityLogs(projectId, 'csv');
+    const pdfFilePath = await this.exportActivityLogs(projectId, 'pdf');
+
+    const archive = archiver('zip', {
+      zlib: { level: 9 },
+    });
+
+    res.attachment(`activity_logs_${projectId}.zip`);
+
+    archive.pipe(res);
+
+    archive.file(jsonFilePath, { name: 'activity_logs.json' });
+    archive.file(csvFilePath, { name: 'activity_logs.csv' });
+    archive.file(pdfFilePath, { name: 'activity_logs.pdf' });
+
+    await archive.finalize();
     return this.activityLogRepository.deleteProjectActivityLogs(projectId);
   }
 

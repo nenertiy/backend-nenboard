@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { ActivityLogRepository } from './activity-log.repository';
 import { CreateActivityLogDto } from './dto/create-activity-log.dto';
+import { createWriteStream, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { parse } from 'json2csv';
+import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class ActivityLogService {
@@ -30,5 +34,118 @@ export class ActivityLogService {
 
   async deleteProjectActivityLogs(projectId: string) {
     return this.activityLogRepository.deleteProjectActivityLogs(projectId);
+  }
+
+  async exportActivityLogs(projectId: string, format: 'json' | 'csv' | 'pdf') {
+    const logs = await this.activityLogRepository.findActivityLogs(
+      projectId,
+      'asc',
+    );
+
+    if (!logs.length) {
+      throw new Error('No activity logs found for the specified project.');
+    }
+
+    const exportDir = join(__dirname, '../../exports');
+    if (!existsSync(exportDir)) {
+      mkdirSync(exportDir, { recursive: true });
+    }
+
+    const fileName = `activity_logs_${projectId}.${format}`;
+    const filePath = join(exportDir, fileName);
+
+    if (format === 'json') {
+      writeFileSync(filePath, JSON.stringify(logs, null, 2));
+      return filePath;
+    }
+
+    if (format === 'csv') {
+      const fields = [
+        'id',
+        'title',
+        'details',
+        'action',
+        'user.email',
+        'project.name',
+        'task.title',
+        'createdAt',
+      ];
+      const csv = parse(logs, { fields });
+      writeFileSync(filePath, csv);
+      return filePath;
+    }
+
+    if (format === 'pdf') {
+      return new Promise((resolve, reject) => {
+        try {
+          const doc = new PDFDocument({
+            margin: 40,
+            size: 'A4',
+          });
+
+          const stream = createWriteStream(filePath);
+          doc.pipe(stream);
+
+          doc
+            .fontSize(24)
+            .fillColor('#333333')
+            .text(
+              `Activity Logs for Project ${logs[0]?.project?.name || projectId}`,
+              {
+                align: 'center',
+              },
+            )
+            .moveDown(2);
+
+          logs.forEach((log, index) => {
+            doc
+              .rect(30, doc.y, 540, 100)
+              .fill('#F8F8F8')
+              .stroke()
+              .fillColor('black');
+
+            doc
+              .moveDown(0.5)
+              .fontSize(16)
+              .fillColor('#0056b3')
+              .text(log.title, { continued: true })
+              .fontSize(10)
+              .fillColor('#555555')
+              .text(`  (${new Date(log.createdAt).toLocaleString()})`, {
+                align: 'right',
+              });
+
+            doc
+              .moveDown(0.5)
+              .fontSize(12)
+              .fillColor('black')
+              .text(`Action: ${log.action}`)
+              .text(`User: ${log.user.email}`);
+
+            if (log.task) doc.text(`Task: ${log.task.title}`);
+            if (log.details) doc.text(`Details: ${log.details}`);
+
+            doc.moveDown();
+
+            if (index < logs.length - 1) {
+              doc
+                .strokeColor('#CCCCCC')
+                .lineWidth(1)
+                .moveTo(30, doc.y)
+                .lineTo(570, doc.y)
+                .stroke()
+                .moveDown();
+            }
+          });
+
+          doc.end();
+          stream.on('finish', () => resolve(filePath));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    throw new ConflictException('Invalid format');
   }
 }

@@ -30,19 +30,19 @@ export class ActivityLogRepository {
     });
   }
 
-  async findActivityLogs(projectId: string) {
+  async findActivityLogs(projectId: string, sort: 'asc' | 'desc' = 'desc') {
     return this.prisma.activityLog.findMany({
       orderBy: {
-        createdAt: 'desc',
+        createdAt: sort,
       },
       where: {
         projectId,
       },
-      // include: {
-      //   user: true,
-      //   project: true,
-      //   task: true,
-      // },
+      include: {
+        user: true,
+        project: true,
+        task: true,
+      },
     });
   }
 

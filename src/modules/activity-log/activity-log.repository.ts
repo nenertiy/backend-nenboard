@@ -25,31 +25,47 @@ export class ActivityLogRepository {
             id: projectId,
           },
         },
-        task: {
-          connect: {
-            id: taskId,
-          },
-        },
+        task: taskId ? { connect: { id: taskId } } : undefined,
       },
     });
   }
 
   async findActivityLogs(projectId: string) {
     return this.prisma.activityLog.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
       where: {
         projectId,
       },
-      //   include: {
-      //     user: true,
-      //     project: true,
-      //     task: true,
-      //   },
+      // include: {
+      //   user: true,
+      //   project: true,
+      //   task: true,
+      // },
     });
   }
 
   async findActivityLog(id: string) {
     return this.prisma.activityLog.findUnique({
       where: { id },
+      include: {
+        user: {
+          select: { email: true, username: true },
+        },
+        project: {
+          select: { name: true, description: true },
+        },
+        task: {
+          select: {
+            title: true,
+            description: true,
+            status: true,
+            priority: true,
+            dueDate: true,
+          },
+        },
+      },
     });
   }
 

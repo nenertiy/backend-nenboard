@@ -85,6 +85,7 @@ export class ProjectsController {
 
     await this.activityLogService.createActivityLog(user.id, project.id, null, {
       title: `Project ${project.name} created`,
+      details: `Project ${project.description} created`,
       action: ActivityLogAction.CREATED,
     });
 
@@ -108,6 +109,7 @@ export class ProjectsController {
 
     await this.activityLogService.createActivityLog(user.id, id, null, {
       title: `Project ${project.name} updated`,
+      details: `Project ${project.description} updated`,
       action: ActivityLogAction.UPDATED,
     });
 
@@ -125,6 +127,15 @@ export class ProjectsController {
     return this.projectsService.deleteProject(id);
   }
 
+  @ApiOperation({ summary: 'Get all activity logs for a project' })
+  @ApiBearerAuth()
+  @Get(':id/activity-logs')
+  @UseGuards(JwtAuthGuard, ProjectRoleGuard)
+  @ProjectRole(UserRole.OWNER)
+  getActivityLogs(@Param('id') id: string) {
+    return this.activityLogService.findActivityLogs(id);
+  }
+
   @ApiOperation({ summary: 'Create a new task' })
   @ApiBearerAuth()
   @Post(':id/tasks')
@@ -139,6 +150,7 @@ export class ProjectsController {
 
     await this.activityLogService.createActivityLog(user.id, id, task.id, {
       title: `Task ${task.title} created`,
+      details: `Task ${task.description} created by ${user.email}`,
       action: ActivityLogAction.CREATED,
     });
 
@@ -177,6 +189,7 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
   async inviteUserToProject(
+    @DecodeUser() user: UserWithoutPassword,
     @Param('id') projectId: string,
     @Body('email') email: string,
   ) {
@@ -191,6 +204,7 @@ export class ProjectsController {
       null,
       {
         title: `User ${invitation.user.email} invited to project ${projectId}`,
+        details: `User ${invitation.user.email} invited to project ${projectId} by ${user.email}`,
         action: ActivityLogAction.CREATED,
       },
     );
@@ -212,6 +226,7 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
   async deleteUserFromProject(
+    @DecodeUser() user: UserWithoutPassword,
     @Param('id') projectId: string,
     @Param('userId') userId: string,
   ) {
@@ -222,6 +237,7 @@ export class ProjectsController {
 
     await this.activityLogService.createActivityLog(userId, projectId, null, {
       title: `User ${userProject.userId} deleted from project ${projectId}`,
+      details: `User ${userProject.userId} deleted from project ${projectId} by ${user.email}`,
       action: ActivityLogAction.DELETED,
     });
 
@@ -251,6 +267,7 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER)
   async updateUserRole(
+    @DecodeUser() user: UserWithoutPassword,
     @Param('id') id: string,
     @Param('userId') userId: string,
     @Body('role') role: UserRole,
@@ -263,6 +280,7 @@ export class ProjectsController {
 
     await this.activityLogService.createActivityLog(userId, id, null, {
       title: `User ${userProject.userId} role updated to ${role}`,
+      details: `User ${userProject.userId} role updated to ${role} by ${user.email}`,
       action: ActivityLogAction.UPDATED,
     });
 
@@ -283,7 +301,10 @@ export class ProjectsController {
   @Delete('invitations/:invitationId')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  async deleteInvitation(@Param('invitationId') invitationId: string) {
+  async deleteInvitation(
+    @DecodeUser() user: UserWithoutPassword,
+    @Param('invitationId') invitationId: string,
+  ) {
     const invitation =
       await this.projectsService.deleteInvitation(invitationId);
 
@@ -293,6 +314,7 @@ export class ProjectsController {
       null,
       {
         title: `Invitation for ${invitation.userId} deleted successfully`,
+        details: `Invitation for ${invitation.userId} deleted successfully by ${user.email}`,
         action: ActivityLogAction.DELETED,
       },
     );

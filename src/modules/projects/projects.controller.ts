@@ -124,10 +124,10 @@ export class ProjectsController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER)
-  async deleteProject(@Param('id') id: string) {
-    await this.activityLogService.deleteProjectActivityLogs(id);
+  async deleteProject(@Param('id') id: string, @Res() res: Response) {
+    await this.activityLogService.deleteProjectActivityLogs(id, res);
 
-    return this.projectsService.deleteProject(id);
+    await this.projectsService.deleteProject(id);
   }
 
   @ApiOperation({ summary: 'Get all activity logs for a project' })

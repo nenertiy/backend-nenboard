@@ -7,7 +7,6 @@ import {
   Body,
   Get,
   UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,15 +20,23 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { ProjectRoleGuard } from '../auth/guards/project-role.guard';
-import { UserRole, TaskStatus, TaskPriority } from '@prisma/client';
+import {
+  UserRole,
+  TaskStatus,
+  TaskPriority,
+  ActivityLogAction,
+} from '@prisma/client';
 import { ProjectRole } from 'src/common/decorators/project-role.decorator';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-
+import { ActivityLogService } from '../activity-log/activity-log.service';
 @ApiTags('Tasks')
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly tasksService: TasksService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly activityLogService: ActivityLogService,
+  ) {}
 
   @ApiOperation({ summary: 'Get a task by id' })
   @ApiBearerAuth()
@@ -44,8 +51,25 @@ export class TasksController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  updateTask(@Param('id') id: string, @Body() updateTaskDto: UpdateTaskDto) {
-    return this.tasksService.updateTask(id, updateTaskDto);
+  async updateTask(
+    @Param('id') id: string,
+    @Body() updateTaskDto: UpdateTaskDto,
+    @DecodeUser() user: UserWithoutPassword,
+  ) {
+    const task = await this.tasksService.updateTask(id, updateTaskDto);
+
+    await this.activityLogService.createActivityLog(
+      user.id,
+      task.projectId,
+      task.id,
+      {
+        title: `Task with title: ${task.title} was updated`,
+        details: `Task with description: ${task.description} was updated by ${user.email}`,
+        action: ActivityLogAction.UPDATED,
+      },
+    );
+
+    return task;
   }
 
   @ApiOperation({ summary: 'Delete a task' })
@@ -53,8 +77,24 @@ export class TasksController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  deleteTask(@Param('id') id: string, @DecodeUser() user: UserWithoutPassword) {
-    return this.tasksService.deleteTask(user.id, id);
+  async deleteTask(
+    @Param('id') id: string,
+    @DecodeUser() user: UserWithoutPassword,
+  ) {
+    const task = await this.tasksService.deleteTask(user.id, id);
+
+    await this.activityLogService.createActivityLog(
+      user.id,
+      task.projectId,
+      task.id,
+      {
+        title: `Task with title: ${task.title} was deleted`,
+        details: `Task with description: ${task.description} was deleted by ${user.email}`,
+        action: ActivityLogAction.DELETED,
+      },
+    );
+
+    return { message: 'Task deleted successfully' };
   }
 
   @ApiOperation({ summary: 'Update a task status' })
@@ -72,11 +112,25 @@ export class TasksController {
   @UseInterceptors(FileInterceptor('file'))
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  updateTaskStatus(
+  async updateTaskStatus(
     @Param('id') id: string,
     @Body('status') status: TaskStatus,
+    @DecodeUser() user: UserWithoutPassword,
   ) {
-    return this.tasksService.updateTaskStatus(id, status);
+    const task = await this.tasksService.updateTaskStatus(id, status);
+
+    await this.activityLogService.createActivityLog(
+      user.id,
+      task.projectId,
+      task.id,
+      {
+        title: `Task with title: ${task.title} status was updated to ${status}`,
+        details: `Task with description: ${task.description} status was updated to ${status} by ${user.email}`,
+        action: ActivityLogAction.UPDATED,
+      },
+    );
+
+    return task;
   }
 
   @ApiOperation({ summary: 'Update a task priority' })
@@ -94,11 +148,25 @@ export class TasksController {
   @UseInterceptors(FileInterceptor('file'))
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  updateTaskPriority(
+  async updateTaskPriority(
     @Param('id') id: string,
     @Body('priority') priority: TaskPriority,
+    @DecodeUser() user: UserWithoutPassword,
   ) {
-    return this.tasksService.updateTaskPriority(id, priority);
+    const task = await this.tasksService.updateTaskPriority(id, priority);
+
+    await this.activityLogService.createActivityLog(
+      user.id,
+      task.projectId,
+      task.id,
+      {
+        title: `Task with title: ${task.title} priority was updated to ${priority}`,
+        details: `Task with description: ${task.description} priority was updated to ${priority} by ${user.email}`,
+        action: ActivityLogAction.UPDATED,
+      },
+    );
+
+    return task;
   }
 
   @ApiOperation({ summary: 'Assign a task to a user' })
@@ -114,12 +182,29 @@ export class TasksController {
   @Put(':id/assign')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  assignTask(
+  async assignTask(
     @Param('id') id: string,
     @Body('assignedToUserId') assignedToUserId: string,
     @DecodeUser() user: UserWithoutPassword,
   ) {
-    return this.tasksService.assignTask(user.id, assignedToUserId, id);
+    const task = await this.tasksService.assignTask(
+      user.id,
+      assignedToUserId,
+      id,
+    );
+
+    await this.activityLogService.createActivityLog(
+      user.id,
+      task.projectId,
+      task.id,
+      {
+        title: `Task with title: ${task.title} was assigned to ${assignedToUserId}`,
+        details: `Task with description: ${task.description} was assigned to ${assignedToUserId} by ${user.email}`,
+        action: ActivityLogAction.UPDATED,
+      },
+    );
+
+    return task;
   }
 
   @ApiOperation({ summary: 'Archive a task' })
@@ -127,10 +212,23 @@ export class TasksController {
   @Put(':id/archive')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER, UserRole.ADMIN)
-  archiveTask(
+  async archiveTask(
     @Param('id') id: string,
     @DecodeUser() user: UserWithoutPassword,
   ) {
-    return this.tasksService.archiveTask(user.id, id);
+    const task = await this.tasksService.archiveTask(user.id, id);
+
+    await this.activityLogService.createActivityLog(
+      user.id,
+      task.projectId,
+      task.id,
+      {
+        title: `Task with title: ${task.title} was archived`,
+        details: `Task with description: ${task.description} was archived by ${user.email}`,
+        action: ActivityLogAction.ARCHIVED,
+      },
+    );
+
+    return task;
   }
 }

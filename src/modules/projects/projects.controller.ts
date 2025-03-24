@@ -9,6 +9,8 @@ import {
   Param,
   Put,
   Delete,
+  Res,
+  Query,
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
@@ -30,6 +32,7 @@ import {
 import { TasksService } from '../tasks/tasks.service';
 import { CreateTaskDto } from '../tasks/dto/create-task.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { Response } from 'express';
 
 @ApiTags('Projects')
 @Controller('projects')
@@ -136,6 +139,23 @@ export class ProjectsController {
     return this.activityLogService.findActivityLogs(id);
   }
 
+  @ApiOperation({ summary: 'Export activity logs for a project' })
+  @ApiBearerAuth()
+  @Get(':id/activity-logs/export')
+  @UseGuards(JwtAuthGuard)
+  async exportActivityLogs(
+    @Param('id') projectId: string,
+    @Query('format') format: 'json' | 'csv' | 'pdf',
+    @Res() res: Response,
+  ) {
+    const filePath = await this.activityLogService.exportActivityLogs(
+      projectId,
+      format,
+    );
+
+    res.download(filePath as string);
+  }
+
   @ApiOperation({ summary: 'Create a new task' })
   @ApiBearerAuth()
   @Post(':id/tasks')
@@ -149,8 +169,8 @@ export class ProjectsController {
     const task = await this.tasksService.createTask(user.id, id, createTaskDto);
 
     await this.activityLogService.createActivityLog(user.id, id, task.id, {
-      title: `Task ${task.title} created`,
-      details: `Task ${task.description} created by ${user.email}`,
+      title: `Task with title: ${task.title} was created`,
+      details: `Task with description: ${task.description} was created by ${user.email}`,
       action: ActivityLogAction.CREATED,
     });
 

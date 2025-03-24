@@ -44,6 +44,10 @@ export class ProjectRepository {
   }
 
   async deleteProject(projectId: string) {
+    await this.prisma.userProject.deleteMany({
+      where: { projectId },
+    });
+
     await this.prisma.project.delete({
       where: { id: projectId },
     });

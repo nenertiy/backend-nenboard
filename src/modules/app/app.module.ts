@@ -10,6 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 import { TokenModule } from '../token/token.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { TasksModule } from '../tasks/tasks.module';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { TasksModule } from '../tasks/tasks.module';
     UsersModule,
     ProjectsModule,
     TasksModule,
+    ActivityLogModule,
     AuthModule,
     TokenModule,
   ],

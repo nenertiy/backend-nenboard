@@ -3,13 +3,20 @@ import { Response } from 'express';
 import { createWriteStream, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { ActivityLogRepository } from './activity-log.repository';
+import { ActivityLogGateway } from './activity-log.gateway';
 import { CreateActivityLogDto } from './dto/create-activity-log.dto';
 import { parse } from 'json2csv';
 import * as PDFDocument from 'pdfkit';
 import * as archiver from 'archiver';
+import { ProjectsService } from '../projects/projects.service';
+import { User } from '@prisma/client';
 @Injectable()
 export class ActivityLogService {
-  constructor(private readonly activityLogRepository: ActivityLogRepository) {}
+  constructor(
+    private readonly activityLogRepository: ActivityLogRepository,
+    private readonly activityLogGateway: ActivityLogGateway,
+    private readonly projectsService: ProjectsService,
+  ) {}
 
   async createActivityLog(
     userId: string,
@@ -17,16 +24,33 @@ export class ActivityLogService {
     taskId: string,
     data: CreateActivityLogDto,
   ) {
-    return this.activityLogRepository.createActivityLog(
+    const activityLog = await this.activityLogRepository.createActivityLog(
       userId,
       projectId,
       taskId,
       data,
     );
+
+    this.activityLogGateway.server
+      .to(`project_${projectId}`)
+      .emit('activityLogUpdate', activityLog);
+
+    const projectUsers =
+      await this.projectsService.findUsersByProjectId(projectId);
+
+    const rooms = projectUsers.map(
+      (user) => `project_${'user' in user ? user.user.id : user.id}`,
+    );
+
+    if (rooms.length > 0) {
+      this.activityLogGateway.server.socketsJoin(rooms);
+    }
+
+    return activityLog;
   }
 
-  async findActivityLogs(projectId: string) {
-    return this.activityLogRepository.findActivityLogs(projectId);
+  async findActivityLogs(projectId: string, sort: 'asc' | 'desc' = 'desc') {
+    return this.activityLogRepository.findActivityLogs(projectId, sort);
   }
 
   async findActivityLog(id: string) {

@@ -9,7 +9,7 @@ import { ProjectRepository } from './project.repository';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { MediaService } from '../media/media.service';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { InvitationStatus, UserRole } from '@prisma/client';
+import { InvitationStatus, User, UserRole } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Project } from '@prisma/client';
@@ -82,11 +82,11 @@ export class ProjectsService {
     query?: string,
     take?: number,
     skip?: number,
-  ) {
-    const cachedProjects = await this.cacheManager.get(
+  ): Promise<Project[]> {
+    const cachedProjects = await this.cacheManager.get<Project[]>(
       `projects_${userId}_${query}_${take}_${skip}`,
     );
-    if (cachedProjects) {
+    if (cachedProjects && cachedProjects.length > 0) {
       return cachedProjects;
     }
 
@@ -97,6 +97,10 @@ export class ProjectsService {
       skip,
     );
     if (projects.length === 0) {
+      await this.cacheManager.set(
+        `projects_${userId}_${query}_${take}_${skip}`,
+        [],
+      );
       throw new NotFoundException('No projects found');
     }
 
@@ -129,7 +133,7 @@ export class ProjectsService {
   async findUsersByProjectId(projectId: string) {
     const cachedUsers = await this.cacheManager.get(`users_${projectId}`);
     if (cachedUsers) {
-      return cachedUsers;
+      return cachedUsers as User[];
     }
 
     const users = await this.projectRepository.findUsersByProjectId(projectId);

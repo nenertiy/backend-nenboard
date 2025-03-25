@@ -28,6 +28,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { TasksService } from '../tasks/tasks.service';
 import { CreateTaskDto } from '../tasks/dto/create-task.dto';
@@ -45,10 +46,18 @@ export class ProjectsController {
 
   @ApiOperation({ summary: 'Get all user`s projects' })
   @ApiBearerAuth()
+  @ApiQuery({ name: 'query', required: false })
+  @ApiQuery({ name: 'take', required: false })
+  @ApiQuery({ name: 'skip', required: false })
   @Get()
   @UseGuards(JwtAuthGuard)
-  findProjects(@DecodeUser() user: UserWithoutPassword) {
-    return this.projectsService.findProjects(user.id);
+  findProjects(
+    @DecodeUser() user: UserWithoutPassword,
+    @Query('query') query?: string,
+    @Query('take') take?: number,
+    @Query('skip') skip?: number,
+  ) {
+    return this.projectsService.findProjects(user.id, query, take, skip);
   }
 
   @ApiOperation({ summary: 'Get a project by id' })
@@ -124,7 +133,18 @@ export class ProjectsController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, ProjectRoleGuard)
   @ProjectRole(UserRole.OWNER)
-  async deleteProject(@Param('id') id: string, @Res() res: Response) {
+  async deleteProject(
+    @Param('id') id: string,
+    @DecodeUser() user: UserWithoutPassword,
+    @Res() res: Response,
+  ) {
+    const project = await this.projectsService.findProject(id);
+
+    await this.activityLogService.createActivityLog(user.id, id, null, {
+      title: `Project ${project.name} deleted`,
+      details: `Project ${project.description} deleted`,
+      action: ActivityLogAction.DELETED,
+    });
     await this.activityLogService.deleteProjectActivityLogs(id, res);
 
     await this.projectsService.deleteProject(id);

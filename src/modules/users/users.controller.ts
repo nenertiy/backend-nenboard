@@ -14,7 +14,13 @@ import {
   Put,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { DecodeUser } from 'src/common/decorators/decode-user.decorator';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserWithoutPassword } from 'src/common/types/user';
@@ -99,16 +105,16 @@ export class UsersController {
   }
 
   @ApiOperation({ summary: 'Get all users' })
+  @ApiQuery({ name: 'query', required: false })
+  @ApiQuery({ name: 'take', required: false })
+  @ApiQuery({ name: 'skip', required: false })
   @Get()
   async findAll(
-    @Query('query') query: string,
-    @Query('take') take: number = 10,
-    @Query('skip') skip: number = 0,
+    @Query('query') query?: string,
+    @Query('take') take?: number,
+    @Query('skip') skip?: number,
   ) {
-    if (query) {
-      return this.usersService.search(query, take, skip);
-    }
-    return this.usersService.findAll(take, skip);
+    return this.usersService.findAll(query, take, skip);
   }
 
   @ApiOperation({ summary: 'Get user by id' })

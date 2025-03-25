@@ -61,28 +61,17 @@ export class UsersService {
     return user;
   }
 
-  async findAll(take: number, skip: number) {
-    const cachedUsers = await this.cacheManager.get('users');
+  async findAll(query?: string, take?: number, skip?: number) {
+    const cachedUsers = await this.cacheManager.get(
+      `users_${query}_${take}_${skip}`,
+    );
     if (cachedUsers) {
       return cachedUsers;
     }
 
-    const users = await this.usersRepository.findAll(take, skip);
+    const users = await this.usersRepository.findAll(query, take, skip);
 
-    await this.cacheManager.set('users', users);
-
-    return users;
-  }
-
-  async search(query: string, take: number, skip: number) {
-    const cachedUsers = await this.cacheManager.get(`users_search_${query}`);
-    if (cachedUsers) {
-      return cachedUsers;
-    }
-
-    const users = await this.usersRepository.search(query, take, skip);
-
-    await this.cacheManager.set(`users_search_${query}`, users);
+    await this.cacheManager.set(`users_${query}_${take}_${skip}`, users);
 
     return users;
   }

@@ -25,15 +25,7 @@ export class UsersRepository {
     });
   }
 
-  async findAll(take: number, skip: number) {
-    return this.prisma.user.findMany({
-      take,
-      skip,
-      select: USER_SELECT,
-    });
-  }
-
-  async search(query: string, take: number, skip: number) {
+  async findAll(query?: string, take?: number, skip?: number) {
     return this.prisma.user.findMany({
       take,
       skip,

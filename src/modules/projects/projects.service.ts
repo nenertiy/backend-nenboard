@@ -1,3 +1,4 @@
+import { PROJECT_SELECT } from 'src/common/types/include/project';
 import {
   Inject,
   Injectable,
@@ -11,6 +12,7 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { InvitationStatus, UserRole } from '@prisma/client';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { Project } from '@prisma/client';
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -75,24 +77,41 @@ export class ProjectsService {
     return { message: 'Project deleted successfully' };
   }
 
-  async findProjects(userId: string) {
-    const cachedProjects = await this.cacheManager.get(`projects_${userId}`);
+  async findProjects(
+    userId: string,
+    query?: string,
+    take?: number,
+    skip?: number,
+  ) {
+    const cachedProjects = await this.cacheManager.get(
+      `projects_${userId}_${query}_${take}_${skip}`,
+    );
     if (cachedProjects) {
       return cachedProjects;
     }
 
-    const projects = await this.projectRepository.findProjects(userId);
+    const projects = await this.projectRepository.findProjects(
+      userId,
+      query,
+      take,
+      skip,
+    );
     if (projects.length === 0) {
       throw new NotFoundException('No projects found');
     }
 
-    await this.cacheManager.set(`projects_${userId}`, projects);
+    await this.cacheManager.set(
+      `projects_${userId}_${query}_${take}_${skip}`,
+      projects,
+    );
 
     return projects;
   }
 
-  async findProject(projectId: string) {
-    const cachedProject = await this.cacheManager.get(`project_${projectId}`);
+  async findProject(projectId: string): Promise<Project> {
+    const cachedProject = await this.cacheManager.get<Project>(
+      `project_${projectId}`,
+    );
     if (cachedProject) {
       return cachedProject;
     }

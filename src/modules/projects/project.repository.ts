@@ -60,10 +60,18 @@ export class ProjectRepository {
     });
   }
 
-  async findProjects(userId: string) {
+  async findProjects(
+    userId: string,
+    query?: string,
+    take?: number,
+    skip?: number,
+  ) {
     return this.prisma.project.findMany({
+      take,
+      skip,
       where: {
         users: { some: { userId } },
+        name: { contains: query, mode: 'insensitive' },
       },
       select: PROJECTS_SELECT,
     });

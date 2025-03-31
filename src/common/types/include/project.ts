@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-export const PROJECT_SELECT: Prisma.ProjectSelect = {
+export const PROJECT_SELECT = {
   id: true,
   name: true,
   description: true,
@@ -47,13 +47,13 @@ export const PROJECT_SELECT: Prisma.ProjectSelect = {
       updatedAt: true,
     },
   },
-};
+} satisfies Prisma.ProjectSelect;
 
-export const PROJECTS_SELECT: Prisma.ProjectSelect = {
+export const PROJECTS_SELECT = {
   id: true,
   name: true,
   description: true,
   projectImage: { select: { id: true, url: true, filename: true } },
   createdAt: true,
   updatedAt: true,
-};
+} satisfies Prisma.ProjectSelect;

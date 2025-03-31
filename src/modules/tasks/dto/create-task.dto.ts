@@ -4,10 +4,12 @@ import {
   IsNotEmpty,
   IsOptional,
   IsEnum,
+  IsUUID,
 } from 'class-validator';
 import { TaskPriority, TaskStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
+
 export class CreateTaskDto {
   @ApiProperty({ default: 'Task title' })
   @IsString()
@@ -35,8 +37,8 @@ export class CreateTaskDto {
   @IsOptional()
   priority: TaskPriority;
 
-  @ApiProperty({ default: '123e4567-e89b-12d3-a456-426614174000' })
-  @IsString()
+  @ApiProperty()
+  @IsUUID()
   @IsOptional()
   assignedToUserId: string;
 }

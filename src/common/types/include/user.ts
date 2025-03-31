@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-export const USER_SELECT: Prisma.UserSelect = {
+export const USER_SELECT = {
   id: true,
   username: true,
   email: true,
@@ -13,4 +13,4 @@ export const USER_SELECT: Prisma.UserSelect = {
       project: true,
     },
   },
-};
+} satisfies Prisma.UserSelect;

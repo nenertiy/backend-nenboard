@@ -9,7 +9,6 @@ import { parse } from 'json2csv';
 import * as PDFDocument from 'pdfkit';
 import * as archiver from 'archiver';
 import { ProjectsService } from '../projects/projects.service';
-import { User } from '@prisma/client';
 @Injectable()
 export class ActivityLogService {
   constructor(
